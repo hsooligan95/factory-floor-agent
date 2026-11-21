@@ -17,6 +17,7 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from retrieval import Hit, HybridIndex, tokenise
+from trace_emit import emit_run_record_if_configured
 
 DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 MAX_ATTEMPTS = 2
@@ -200,4 +201,8 @@ def run_agent(question: str, docs_dir: Path = DOCS_DIR) -> AgentState:
             "I could not ground an answer to that question in the "
             "document set, so I am abstaining rather than guessing."
         )
+    # Emit-side only: if a trace ID was supplied via the environment,
+    # append a JSONL run record reshaped from this finished state (see
+    # trace_emit.py). No-op — and no behaviour change — otherwise.
+    emit_run_record_if_configured(result, question, threshold=GROUNDING_THRESHOLD)
     return result

@@ -85,8 +85,9 @@ relevant, fails its own check, and answers *"I could not ground an answer
 to that question in the document set, so I am abstaining rather than
 guessing."*
 
-Tests: `python -m unittest discover tests` (2 tests: grounded answer +
-abstention — both pass).
+Tests: `python -m unittest discover tests` (5 tests: grounded answer +
+abstention, plus the AgentTrace emitter's off-by-default / on-with-ID
+behaviour — all pass).
 
 ## Architecture
 
@@ -128,6 +129,22 @@ Keys are read from the environment only — never from code, never from a
 file in this repo. On any provider failure the agent falls back to the
 offline composer.
 
+### AgentTrace run records (optional, off by default)
+
+Supply a trace ID and each run appends a JSONL run record — run start,
+plan, retrieval, the groundedness checker's per-claim scores and
+verdict, and the answer/abstain outcome — reshaped only from the run's
+computed state (no narration; the record contains no "options
+considered" claim, because this agent enumerates none):
+
+| Variable | Purpose |
+|---|---|
+| `FACTORY_FLOOR_TRACE_ID` | Trace ID to record under. `AGENTTRACE_TRACE_ID` is accepted as a fallback. Unset → nothing is written and behaviour is unchanged. |
+| `FACTORY_FLOOR_TRACE_OUT` | Output path (default `./factory-floor-trace.jsonl`). |
+
+The emitter (`src/trace_emit.py`) is emit-side only: it reads the
+finished state and never feeds back into the graph.
+
 ## What this demonstrates
 
 - **LangGraph state machines** — a real `StateGraph` with typed state,
@@ -161,8 +178,10 @@ offline composer.
 run_agent.py          CLI entry point (one run command)
 src/agent.py          LangGraph state machine (4 nodes + conditional edge)
 src/retrieval.py      Chunking + hybrid BM25 / TF-IDF retrieval
+src/trace_emit.py     Optional AgentTrace run-record emitter (off by default)
 docs/                 16 public documentation notes + ATTRIBUTION.md
 tests/test_agent.py   Smoke tests (grounded answer + abstention)
+tests/test_trace_emit.py  Emitter contract tests (off by default, on with ID)
 tests/expected_run.md Recorded real run with sources visible
 requirements.txt      langgraph, langchain-core
 .env.example          Optional provider configuration (env vars only)
