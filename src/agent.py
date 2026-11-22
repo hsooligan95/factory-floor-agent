@@ -192,7 +192,20 @@ def build_graph(index: HybridIndex):
     return graph.compile()
 
 
-def run_agent(question: str, docs_dir: Path = DOCS_DIR) -> AgentState:
+def run_agent(question: str, docs_dir: Path = DOCS_DIR,
+              context_vault_path=None) -> AgentState:
+    # Optional ContextVault backend (see context_vault_backend.py):
+    # enabled by the argument or FACTORY_FLOOR_CONTEXT_VAULT. When
+    # disabled — the default — none of it is imported or touched and
+    # the run is exactly what it was before the backend existed.
+    backend = None
+    prior: list[dict] = []
+    vault_path = context_vault_path or os.environ.get("FACTORY_FLOOR_CONTEXT_VAULT")
+    if vault_path:
+        from context_vault_backend import ContextVaultBackend, new_run_id
+        backend = ContextVaultBackend(vault_path)
+        prior = backend.prior_summaries(question)
+
     index = HybridIndex(docs_dir)
     app = build_graph(index)
     result = app.invoke({"question": question, "attempts": 0})
@@ -201,6 +214,23 @@ def run_agent(question: str, docs_dir: Path = DOCS_DIR) -> AgentState:
             "I could not ground an answer to that question in the "
             "document set, so I am abstaining rather than guessing."
         )
+
+    if backend is not None:
+        run_id = new_run_id()
+        result["run_id"] = run_id
+        result["prior_run_summaries"] = prior
+        try:
+            written = backend.record_run(
+                question, result, run_id=run_id,
+                base_version=prior[0]["version"] if prior else None)
+            result["context_vault"] = {"path": backend.path, **written}
+        except Exception as exc:
+            # A context store must not take the agent's answer down
+            # with it: the failure is reported on the result instead.
+            result["context_vault"] = {"path": backend.path,
+                                        "error": str(exc)}
+        backend.close()
+
     # Emit-side only: if a trace ID was supplied via the environment,
     # append a JSONL run record reshaped from this finished state (see
     # trace_emit.py). No-op — and no behaviour change — otherwise.

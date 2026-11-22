@@ -1,0 +1,24 @@
+=== Factory Floor × ContextVault demo ===
+vault: /tmp/tmp4e4tjrm1/vault.db
+question: What is a state graph in LangGraph and how does state flow through it?
+
+— run 1 (this process): no prior context, writes v1 —
+  ✓ run 1 saw no prior summaries
+  ✓ run 1 wrote factory-floor/runs/what-is-a-state-graph-in-langgraph-and-how-does-state-flow-through-it v1 (source event run-11225b4c7643)
+  answer grounded: True
+
+— run 2 (fresh process, run_agent.py): reads v1, writes v2 —
+  ✓ run 2 process exited cleanly
+  | Prior run context (ContextVault, factory-floor/runs/what-is-a-state-graph-in-langgraph-and-how-does-state-flow-through-it v1):
+  |   written by factory-floor-agent at 2026-11-22T04:21:59.978024Z (source event: run-11225b4c7643)
+  | Run summary written to ContextVault: factory-floor/runs/what-is-a-state-graph-in-langgraph-and-how-does-state-flow-through-it v2 (/tmp/tmp4e4tjrm1/vault.db), source event run-307690c218d3
+  ✓ run 2 displayed the prior run's summary in its context
+  ✓ the provenance run 2 saw is run 1's run ID
+
+— the vault's history for this question —
+  factory-floor/runs/what-is-a-state-graph-in-langgraph-and-how-does-state-flow-through-it v1 [artifact/superseded] by factory-floor-agent at 2026-11-22T04:21:59.978024Z (source: run-11225b4c7643, base: None) = {'question': 'What is a state graph in LangGraph and how does state flow through it?', 'plan': 'concept lookup', 'grounded': True, 'abstained': False, 'attempts': 1, 'answer': 'LangGraph merges that update into the state before the next node runs, so state flows through the graph step by step and every later node sees the work of earlier nodes. Nodes are Python functions that do work, edges define how control flows between nodes, and a shared state object is passed along and updated as execution moves through the graph. You define a graph by declaring a state schema, adding nodes, and connecting them with edges, then compiling the graph into a runnable application. The state schema is commonly a typed dictionary that declares the keys the graph works with, such as the user question, a plan, retrieved documents, a draft answer, and check results.', 'sources': ['LangGraph documentation - Graph API / StateGraph (docs.langchain.com/oss/python/langgraph/graph-api)', 'LangGraph documentation - Overview (docs.langchain.com/oss/python/langgraph/overview)']}
+  factory-floor/runs/what-is-a-state-graph-in-langgraph-and-how-does-state-flow-through-it v2 [artifact/current] by factory-floor-agent at 2026-11-22T04:22:04.007376Z (source: run-307690c218d3, base: 1) = {'question': 'What is a state graph in LangGraph and how does state flow through it?', 'plan': 'concept lookup', 'grounded': True, 'abstained': False, 'attempts': 1, 'answer': 'LangGraph merges that update into the state before the next node runs, so state flows through the graph step by step and every later node sees the work of earlier nodes. Nodes are Python functions that do work, edges define how control flows between nodes, and a shared state object is passed along and updated as execution moves through the graph. You define a graph by declaring a state schema, adding nodes, and connecting them with edges, then compiling the graph into a runnable application. The state schema is commonly a typed dictionary that declares the keys the graph works with, such as the user question, a plan, retrieved documents, a draft answer, and check results.', 'sources': ['LangGraph documentation - Graph API / StateGraph (docs.langchain.com/oss/python/langgraph/graph-api)', 'LangGraph documentation - Overview (docs.langchain.com/oss/python/langgraph/overview)']}
+  ✓ two versions, nothing overwritten
+  ✓ every version carries full provenance
+
+=== DEMO OK — every step passed ===

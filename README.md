@@ -85,9 +85,10 @@ relevant, fails its own check, and answers *"I could not ground an answer
 to that question in the document set, so I am abstaining rather than
 guessing."*
 
-Tests: `python -m unittest discover tests` (5 tests: grounded answer +
-abstention, plus the AgentTrace emitter's off-by-default / on-with-ID
-behaviour — all pass).
+Tests: `python -m unittest discover tests` (10 tests: grounded answer +
+abstention, the AgentTrace emitter's off-by-default / on-with-ID
+behaviour, and the ContextVault backend's write/read-back cycle —
+all pass).
 
 ## Architecture
 
@@ -145,6 +146,32 @@ considered" claim, because this agent enumerates none):
 The emitter (`src/trace_emit.py`) is emit-side only: it reads the
 finished state and never feeds back into the graph.
 
+### Interlock: ContextVault run summaries (optional, off by default)
+
+With a [ContextVault](https://github.com/hsooligan95/context-vault)
+store configured, runs stop being one-shot: at run start the agent
+reads the prior run summary for the same question — a pinned version,
+with its provenance (which agent wrote it, when, from which run) —
+and at run end it writes its own summary as the next version,
+declaring the version it read as its base so a moved head surfaces
+as a vault conflict rather than a silent merge. Every write carries
+full provenance: agent `factory-floor-agent`, source event = the
+run's ID (the AgentTrace trace ID when configured, else a generated
+`run-<hex>` ID). One vault key per normalized question:
+`factory-floor/runs/<slug>`.
+
+| Variable / argument | Purpose |
+|---|---|
+| `FACTORY_FLOOR_CONTEXT_VAULT` | Path to a ContextVault SQLite file. Unset → backend off, behaviour unchanged. |
+| `run_agent(question, context_vault_path=...)` | The same, per call; wins over the env var. |
+
+The backend (`src/context_vault_backend.py`) imports the vault
+lazily, only when enabled: an installed `contextvault` package, or
+the sibling context-vault checkout's `src/` — the local bridge
+between the two projects. `python demo_context_vault.py` runs the
+story end to end (run 2 is a fresh process reading run 1's summary);
+captured output is in `demo-context-vault-output.txt`.
+
 ## What this demonstrates
 
 - **LangGraph state machines** — a real `StateGraph` with typed state,
@@ -179,9 +206,12 @@ run_agent.py          CLI entry point (one run command)
 src/agent.py          LangGraph state machine (4 nodes + conditional edge)
 src/retrieval.py      Chunking + hybrid BM25 / TF-IDF retrieval
 src/trace_emit.py     Optional AgentTrace run-record emitter (off by default)
+src/context_vault_backend.py  Optional ContextVault run-summary backend (off by default)
 docs/                 16 public documentation notes + ATTRIBUTION.md
 tests/test_agent.py   Smoke tests (grounded answer + abstention)
 tests/test_trace_emit.py  Emitter contract tests (off by default, on with ID)
+tests/test_context_vault.py  ContextVault backend tests (off by default, write/read-back, fresh process)
+demo_context_vault.py The ContextVault interlock demo
 tests/expected_run.md Recorded real run with sources visible
 requirements.txt      langgraph, langchain-core
 .env.example          Optional provider configuration (env vars only)

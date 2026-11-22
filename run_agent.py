@@ -21,6 +21,21 @@ def main() -> None:
 
     print(f"Question: {question}")
     print(f"Plan: {result.get('plan')}")
+
+    # Present only when the optional ContextVault backend is enabled:
+    # what prior runs on this question left in the vault, provenance
+    # included, read before this run started.
+    for prior in result.get("prior_run_summaries", []):
+        summary = prior["summary"]
+        print()
+        print(f"Prior run context (ContextVault, {prior['key']} "
+              f"v{prior['version']}):")
+        print(f"  written by {prior['agent']} at {prior['ts']} "
+              f"(source event: {prior['source_event']})")
+        print(f"  grounded: {summary.get('grounded')}, "
+              f"abstained: {summary.get('abstained')}, "
+              f"attempts: {summary.get('attempts')}")
+        print(f"  answer: {summary.get('answer', '')[:200]}")
     print()
     print("Retrieved passages:")
     for i, hit in enumerate(result.get("hits", []), 1):
@@ -37,6 +52,16 @@ def main() -> None:
         mark = "GROUNDED" if claim["grounded"] else "UNGROUNDED"
         print(f"  [{mark} overlap={claim['overlap']}] {claim['sentence'][:110]}")
     print(f"  Result: {'grounded' if result.get('grounded') else 'ABSTAINED'}")
+
+    vault = result.get("context_vault")
+    if vault and "version" in vault:
+        print()
+        print(f"Run summary written to ContextVault: {vault['key']} "
+              f"v{vault['version']} ({vault['path']}), "
+              f"source event {result.get('run_id')}")
+    elif vault and "error" in vault:
+        print()
+        print(f"ContextVault write failed: {vault['error']}")
 
 
 if __name__ == "__main__":
