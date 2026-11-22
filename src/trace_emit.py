@@ -39,12 +39,20 @@ def trace_id_from_env(env: dict | None = None) -> str | None:
     return env.get("FACTORY_FLOOR_TRACE_ID") or env.get("AGENTTRACE_TRACE_ID") or None
 
 
+def instance_from_env(env: dict | None = None) -> str:
+    """This process's instance identity for fleet rollups
+    (AgentTrace): the shared AGENT_INSTANCE env var, "default" when
+    unset -- one process of this agent type is one instance."""
+    env = os.environ if env is None else env
+    return env.get("AGENT_INSTANCE") or "default"
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def build_run_record(result: dict, question: str, *, trace_id: str,
-                     threshold: float) -> list[dict]:
+                     threshold: float, instance: str = "default") -> list[dict]:
     """Reshape a finished run's state into AgentTrace-shaped events."""
     def event(type_: str, payload: dict) -> dict:
         return {
@@ -52,6 +60,7 @@ def build_run_record(result: dict, question: str, *, trace_id: str,
             "ts": _now(),
             "source": SOURCE,
             "agent": SOURCE,
+            "instance": instance,
             "type": type_,
             "payload": payload,
         }
@@ -108,7 +117,8 @@ def emit_run_record_if_configured(result: dict, question: str, *,
         return None
     out = Path(os.environ.get("FACTORY_FLOOR_TRACE_OUT", DEFAULT_OUT))
     events = build_run_record(result, question, trace_id=trace_id,
-                              threshold=threshold)
+                              threshold=threshold,
+                              instance=instance_from_env())
     with out.open("a", encoding="utf-8") as fh:
         for event in events:
             fh.write(json.dumps(event) + "\n")
